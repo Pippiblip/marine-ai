@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orca-marine-ai"
+version = "0.0.1"
+description = "ORCA: Marine EcOsystem Reasoning with Collaborative Agents — voice-first multi-agent system for coastal fishermen"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "ORCA Contributors", email = "info@orca-marine.ai"}
+]
+
+dependencies = [
+    # Web & ASGI
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "python-multipart>=0.0.6",
+    # Orchestration
+    "langgraph>=0.2.0",
+    "langchain>=0.1.0",
+    # LLM & Speech interfaces
+    "anthropic>=0.39.0",
+    "openai>=1.40.0",
+    # Data models
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.0.0",
+    # Geospatial
+    "shapely>=2.0.0",
+    "geopandas>=0.14.0",
+    "haversine>=2.7.0",
+    # HTTP client
+    "httpx>=0.27.0",
+    # Cache & state (fakeredis for testing, optional redis for prod)
+    "redis>=5.0.0",
+    "fakeredis>=2.20.0",
+    # Logging & structured output
+    "python-json-logger>=2.0.0",
+    # Utilities
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    # Linting & formatting
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    # Type checking
+    "mypy>=1.5.0",
+]
+
+[tool.setuptools]
+packages = ["orca"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.package-data]
+orca = ["fixtures/**/*.json", "fixtures/**/*.geojson"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "C4", "D"]
+ignore = ["D100", "D104", "D105", "D107", "D212", "D203", "D213", "UP006", "UP035"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
