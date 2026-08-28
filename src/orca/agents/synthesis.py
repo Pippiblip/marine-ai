@@ -72,6 +72,8 @@ def _measurements(state: PlatformState) -> list[Measurement]:
                     ),
                 )
             )
+    for flag in state.get("safety_flags") or []:
+        values.extend(flag.triggered_by)
     return values
 
 
@@ -120,12 +122,6 @@ def synthesis_node(state: PlatformState) -> dict:
         draft = TEMPLATES["data_stale"].format(
             what="marine", caption=caption(measurement) if measurement else "an unknown time"
         )
-    elif state.get("user_location") is None and state.get("intent") in {
-        "pfz_nearest",
-        "safety_check",
-        "boundary_check",
-    }:
-        draft = TEMPLATES["location_unknown"]
     elif any(flag.severity == Severity.DANGER for flag in flags):
         # SAFETY: verdict is the template; the LLM may not flip it.
         flag = next(flag for flag in flags if flag.severity == Severity.DANGER)
@@ -140,6 +136,12 @@ def synthesis_node(state: PlatformState) -> dict:
             draft = (
                 f"{draft} A cyclone is {cyc.value:g} km away ({caption(cyc)}). Stay ashore."
             )
+    elif state.get("user_location") is None and state.get("intent") in {
+        "pfz_nearest",
+        "safety_check",
+        "boundary_check",
+    }:
+        draft = TEMPLATES["location_unknown"]
     else:
         geo = state.get("geospatial_result")
         weather = state.get("weather_risk_result")
@@ -156,7 +158,7 @@ def synthesis_node(state: PlatformState) -> dict:
             draft = get_llm().narrate(facts, system="Use only these facts; add no numbers.")
             if marine and marine.chlorophyll:
                 draft = (
-                    f"{draft} Chlorophyll is {marine.chlorophyll.value:g} mg/m3 "
+                    f"{draft} Chlorophyll is {marine.chlorophyll.value:g} "
                     f"({caption(marine.chlorophyll)})."
                 )
             src = geo.distance_km

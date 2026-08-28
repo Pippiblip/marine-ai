@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connect your phone WhatsApp</title>
+    <style>
+      body { font: 16px/1.5 "Helvetica Neue", sans-serif; max-width: 640px; margin: 32px auto; padding: 0 16px; color: #102a2e; }
+      code, pre { background: #f4f1ea; padding: 2px 6px; }
+      pre { padding: 12px; overflow-x: auto; }
+      h1 { font-family: Georgia, serif; font-weight: 400; }
+      .warn { background: #fff3cd; padding: 10px 12px; }
+    </style>
+  </head>
+  <body>
+    <p class="warn">This page is setup only. You chat in the <strong>WhatsApp app on your phone</strong>, not here.</p>
+    <h1>Phone WhatsApp → ORCA</h1>
+    <ol>
+      <li>Meta Developer → create an app → WhatsApp → Cloud API. Copy <strong>temporary access token</strong> and <strong>Phone number ID</strong>.</li>
+      <li>Add <strong>your personal number</strong> as a recipient (Meta test numbers can only message allow-listed phones).</li>
+      <li>Put this in <code>.env</code>:
+<pre>ORCA_WHATSAPP_MODE=live
+WHATSAPP_TOKEN=...
+WHATSAPP_PHONE_NUMBER_ID=...
+WHATSAPP_VERIFY_TOKEN=orca-dev</pre>
+      </li>
+      <li>Run the API: <code>uvicorn orca.api.app:app --host 0.0.0.0 --port 8000</code></li>
+      <li>Expose HTTPS (Meta cannot call localhost):
+<pre>ngrok http 8000</pre>
+        In Meta webhook: Callback URL <code>https://YOUR-NGROK/webhooks/whatsapp</code>, verify token <code>orca-dev</code>, subscribe to <code>messages</code>.</li>
+      <li>On your phone, message the <strong>test business number</strong> Meta gave you (not a random contact).</li>
+    </ol>
+    <p>Ask like the web demo, in text:</p>
+    <ul>
+      <li>Where is the nearest fishing zone?</li>
+      <li>Is it safe to go out? cyclone</li>
+      <li>Is it safe to go out? kill weather</li>
+      <li>Share live location from WhatsApp</li>
+    </ul>
+    <p>ORCA replies with <strong>text</strong> and, on a Mac with <code>say</code>, a <strong>voice note</strong> of the same guardrail-approved sentence. Inbound voice notes need Bhashini (<code>ORCA_SPEECH_PROVIDER=bhashini</code>); until then type the question.</p>
+    <p><a href="/">Voice hall demo</a> · <a href="/whatsapp">Browser mock chat</a></p>
+  </body>
+</html>

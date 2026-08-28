@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     whatsapp_token: Optional[str] = None
     whatsapp_phone_number_id: Optional[str] = None
     whatsapp_verify_token: Optional[str] = None
+    # mock = in-process send log (tests/demo UI). live = Graph API to a real phone.
+    orca_whatsapp_mode: Literal["mock", "live"] = "mock"
     exotel_sid: Optional[str] = None
     exotel_token: Optional[str] = None
     twilio_account_sid: Optional[str] = None
@@ -78,6 +80,15 @@ class Settings(BaseSettings):
     def data_mode(self) -> Literal["mock", "real"]:
         """Data source mode (mock fixtures or real APIs)."""
         return self.orca_data_mode
+
+    @property
+    def whatsapp_live(self) -> bool:
+        """True when Cloud API send/receive should hit Meta (needs token + phone id)."""
+        return (
+            self.orca_whatsapp_mode == "live"
+            and bool(self.whatsapp_token)
+            and bool(self.whatsapp_phone_number_id)
+        )
 
     @property
     def wave_unsafe_m(self) -> float:
