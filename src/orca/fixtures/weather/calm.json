@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-09-20T05:30:00+00:00",
+  "wind_speed_kt": 18.0,
+  "wave_height_m": 1.6,
+  "cyclone_distance_km": 420.0,
+  "swell_surge_m": 0.8,
+  "sst_deg_c": 29.1,
+  "headline": "Moderate sea state",
+  "cap_event": "small_craft_alert",
+  "cap_severity": "moderate"
+}

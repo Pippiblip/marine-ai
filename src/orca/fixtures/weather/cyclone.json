@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-09-20T05:30:00+00:00",
+  "wind_speed_kt": 32.0,
+  "wave_height_m": 3.4,
+  "cyclone_distance_km": 180.0,
+  "swell_surge_m": 2.4,
+  "sst_deg_c": 28.4,
+  "headline": "Cyclonic storm — high seas",
+  "cap_event": "Cyclonic Storm",
+  "cap_severity": "extreme"
+}

@@ -1,0 +1,26 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "imbl_demo_boundary"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [75.0, 6.0],
+            [77.0, 6.0],
+            [77.0, 13.0],
+            [82.0, 13.0],
+            [82.0, 9.0],
+            [80.0, 8.0],
+            [79.0, 7.0],
+            [75.0, 6.0]
+          ]
+        ]
+      }
+    }
+  ]
+}

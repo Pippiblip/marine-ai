@@ -79,6 +79,36 @@ class Settings(BaseSettings):
         """Data source mode (mock fixtures or real APIs)."""
         return self.orca_data_mode
 
+    @property
+    def wave_unsafe_m(self) -> float:
+        """Alias for ORCA safety threshold."""
+        return self.orca_wave_unsafe_m
+
+    @property
+    def wind_unsafe_kt(self) -> float:
+        """Alias for ORCA safety threshold."""
+        return self.orca_wind_unsafe_kt
+
+    @property
+    def cyclone_near_km(self) -> float:
+        """Alias for ORCA safety threshold."""
+        return self.orca_cyclone_near_km
+
+    @property
+    def swell_unsafe_m(self) -> float:
+        """Alias for ORCA safety threshold."""
+        return self.orca_swell_unsafe_m
+
+    @property
+    def freshness_max_min_safety(self) -> int:
+        """Alias for ORCA safety freshness window in minutes."""
+        return self.orca_freshness_max_min_safety
+
+    @property
+    def freshness_max_hours_pfz(self) -> int:
+        """Alias for ORCA PFZ freshness window in hours."""
+        return self.orca_freshness_max_hours_pfz
+
 
 # Singleton global settings instance
 settings = Settings()  # type: ignore

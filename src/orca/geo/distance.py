@@ -1,6 +1,7 @@
 """Haversine distance and bearing calculations."""
 
 import math
+
 from orca.schemas import GeoPoint
 
 # Earth's mean radius in kilometers
@@ -27,10 +28,7 @@ def haversine_km(p1: GeoPoint, p2: GeoPoint) -> float:
     dlat = lat2_rad - lat1_rad
     dlon = lon2_rad - lon1_rad
 
-    a = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
-    )
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
     c = 2 * math.asin(math.sqrt(a))
     return EARTH_RADIUS_KM * c
 
@@ -64,3 +62,21 @@ def bearing_deg(p1: GeoPoint, p2: GeoPoint) -> float:
 
     # Normalize to 0–360
     return (bearing + 360) % 360
+
+
+_COMPASS_8 = (
+    "north",
+    "north-east",
+    "east",
+    "south-east",
+    "south",
+    "south-west",
+    "west",
+    "north-west",
+)
+
+
+def compass_8(bearing: float) -> str:
+    """Map a bearing in degrees to an 8-wind compass label."""
+    idx = int((bearing + 22.5) // 45) % 8
+    return _COMPASS_8[idx]

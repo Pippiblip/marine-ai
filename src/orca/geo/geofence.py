@@ -33,9 +33,7 @@ def point_in_polygon(point: GeoPoint, polygon: list[tuple[float, float]]) -> boo
             if y <= max(p1_lat, p2_lat):
                 if x <= max(p1_lon, p2_lon):
                     if p1_lat != p2_lat:
-                        xinters = (y - p1_lat) * (p2_lon - p1_lon) / (
-                            p2_lat - p1_lat
-                        ) + p1_lon
+                        xinters = (y - p1_lat) * (p2_lon - p1_lon) / (p2_lat - p1_lat) + p1_lon
                     if p1_lon == p2_lon or x <= xinters:
                         inside = not inside
         p1_lon, p1_lat = p2_lon, p2_lat
@@ -89,9 +87,7 @@ def load_geojson_polygon(file_path: Path) -> Optional[list[tuple[float, float]]]
     return None
 
 
-def closest_distance_to_polygon_km(
-    point: GeoPoint, polygon: list[tuple[float, float]]
-) -> float:
+def closest_distance_to_polygon_km(point: GeoPoint, polygon: list[tuple[float, float]]) -> float:
     """
     Compute the minimum distance from a point to any edge of a polygon.
 
