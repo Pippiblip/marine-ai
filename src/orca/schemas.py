@@ -7,7 +7,7 @@ typed via one of these classes. Never pass bare dicts.
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -137,7 +137,8 @@ class ToolResponse(BaseModel):
     status: ToolStatus
     retrieved_at: datetime
     source: SourceName
-    payload: Optional[BaseModel] = None  # source-specific model
+    # Concrete tool payloads vary by source; keep their fields intact when serialized.
+    payload: Optional[Any] = None  # source-specific Pydantic model
     error: Optional[str] = None  # error message if status=ERROR
 
 

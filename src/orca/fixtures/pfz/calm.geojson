@@ -1,0 +1,27 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "depth_m": 18.0,
+        "valid_date": "2026-09-20T06:00:00+00:00"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [79.5, 12.5]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "depth_m": 22.0,
+        "valid_date": "2026-09-20T06:00:00+00:00"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [80.2, 13.1]
+      }
+    }
+  ]
+}

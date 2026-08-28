@@ -8,6 +8,7 @@ through all nodes. Each node reads what it needs and writes only its own slice.
 from typing import List, Literal, Optional, TypedDict
 
 from orca.schemas import (
+    GeoPoint,
     GeospatialResult,
     MarineDataResult,
     OceanAnalyticsResult,
@@ -27,7 +28,11 @@ class PlatformState(TypedDict, total=False):
     query_text: str  # transcribed AND translated to English
     source_lang: str  # e.g. "ta-IN", "hi-IN", "en-IN"
     channel: Literal["web", "whatsapp", "ivr"]
-    user_location: Optional[tuple]  # (lat, lon) or None
+    user_location: Optional[GeoPoint]
+    cell_id: str  # fixture/data cell selected by the channel
+    force_error: bool  # kill every data tool (legacy demo switch)
+    force_error_sources: List[str]  # e.g. ["imd_marine"]
+    audio_id: str  # mock ASR key from the web client
     trace_id: str  # per-run id for logging
 
     # --- Set by Router ---

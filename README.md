@@ -116,15 +116,15 @@ ORCA_FRESHNESS_MAX_HOURS_PFZ=6    # PFZ advisories can be up to 6 hours old
 
 ## Project Status
 
-**Current Milestone: M0 — Skeleton & config** ✅
+**Current Milestone: M4 — Agents + graph (mock end-to-end)** ✅
 
 | Milestone | Status | Summary |
 |-----------|--------|---------|
 | M0 | ✅ Done | Skeleton, config, `/health` endpoint |
-| M1 | ⏳ TODO | Contracts, interfaces, mock LLM/speech |
-| M2 | ⏳ TODO | Deterministic core (geo, guardrails) |
-| M3 | ⏳ TODO | Tools, fixtures (mock adapters) |
-| M4 | ⏳ TODO | Agents, graph (end-to-end `pfz_nearest`) |
+| M1 | ✅ Done | Contracts, interfaces, mock LLM/speech |
+| M2 | ✅ Done | Deterministic core (geo, guardrails) |
+| M3 | ✅ Done | Tools, fixtures (mock adapters) |
+| M4 | ✅ Done | Agents, graph (end-to-end `pfz_nearest`) |
 | M5 | ⏳ TODO | Safety path, failure behavior |
 | M6 | ⏳ TODO | Channels, web client |
 | M7 | ⏳ TODO | MCP exposure (optional) |
