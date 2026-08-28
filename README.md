@@ -116,13 +116,13 @@ ORCA_FRESHNESS_MAX_HOURS_PFZ=6    # PFZ advisories can be up to 6 hours old
 
 ## Project Status
 
-**Current Milestone: M0 — Skeleton & config** ✅
+**Current Milestone: M2 — Deterministic core** ✅
 
 | Milestone | Status | Summary |
 |-----------|--------|---------|
 | M0 | ✅ Done | Skeleton, config, `/health` endpoint |
-| M1 | ⏳ TODO | Contracts, interfaces, mock LLM/speech |
-| M2 | ⏳ TODO | Deterministic core (geo, guardrails) |
+| M1 | ✅ Done | Contracts, interfaces, mock LLM/speech |
+| M2 | ✅ Done | Deterministic geo math and fully tested guardrails |
 | M3 | ⏳ TODO | Tools, fixtures (mock adapters) |
 | M4 | ⏳ TODO | Agents, graph (end-to-end `pfz_nearest`) |
 | M5 | ⏳ TODO | Safety path, failure behavior |
@@ -130,7 +130,136 @@ ORCA_FRESHNESS_MAX_HOURS_PFZ=6    # PFZ advisories can be up to 6 hours old
 | M7 | ⏳ TODO | MCP exposure (optional) |
 | M8 | ⏳ TODO | Hardening, demo polish |
 
----
+### M2 completion record
+
+M2 is the deterministic spine of ORCA. It takes structured measurements and
+coordinates as input and produces distances, safety flags, freshness decisions,
+failure states, and fixed messages without calling an LLM or a network service.
+
+#### Deterministic geospatial math
+
+All `GeoPoint` values are validated latitude/longitude pairs. GeoJSON polygon
+coordinates are read in `(longitude, latitude)` order, while `GeoPoint` exposes
+`lat` and `lon` fields. The implementation keeps that conversion explicit so a
+latitude cannot accidentally be treated as a longitude.
+
+**1. Great-circle distance**
+
+`haversine_km(p1, p2)` converts both points to radians and computes the shortest
+surface distance over a spherical Earth. With latitude difference $d_{lat}$,
+longitude difference $d_{lon}$, and $R = 6371.0$ km:
+
+$$
+a = \sin^2\left(\frac{\Delta\phi}{2}\right) +
+\cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta\lambda}{2}\right)
+$$
+
+$$
+c = 2\arcsin(\sqrt{\min(1,a)}), \qquad d = R c
+$$
+
+The `min(1, a)` clamp protects `asin` from a tiny floating-point overshoot at
+coincident or antipodal points. The result is a plain `float` in kilometers;
+when it is returned to a user elsewhere in ORCA, it must be wrapped in a
+provenance-carrying `Measurement`.
+
+**2. Initial compass bearing**
+
+`bearing_deg(p1, p2)` computes the initial true-north bearing, rather than a
+flat-map angle. After converting coordinates to radians:
+
+$$
+y = \sin(\Delta\lambda)\cos(\phi_2)
+$$
+
+$$
+x = \cos(\phi_1)\sin(\phi_2) -
+\sin(\phi_1)\cos(\phi_2)\cos(\Delta\lambda)
+$$
+
+$$
+theta = atan2(y, x) * 180 / pi
+$$
+
+The result is normalized with `(theta + 360) % 360`, giving north as 0,
+east as 90, south as 180, and west as 270. This is used with Haversine
+distance when selecting and describing a nearest PFZ node.
+
+**3. Point-in-polygon containment**
+
+`point_in_polygon()` uses ray casting. It projects a horizontal ray from the
+test point and toggles an `inside` boolean every time the ray crosses a polygon
+edge. Horizontal edges are skipped by the crossing rules, and points exactly
+on an edge are explicitly treated as inside. Rings with fewer than three points
+return `False` instead of raising.
+
+**4. Distance to an IMBL polygon boundary**
+
+`closest_distance_to_polygon_km()` checks every edge, including the closing edge
+from the last coordinate back to the first. For the short local distances used
+by the demo, it projects the coordinates around the query point into kilometers:
+
+$$
+x = (\operatorname{lon} - \operatorname{lon}_p) \times
+111.32\cos(\operatorname{lat}_p), \qquad
+y = (\operatorname{lat} - \operatorname{lat}_p) \times 111.32
+$$
+
+For each segment from $A$ to $B$, it projects the origin onto the segment and
+clamps the projection parameter to $[0,1]$:
+
+$$
+t = \operatorname{clamp}\left(
+$$
+
+The candidate boundary distance is the smallest Euclidean distance to
+$A + t(B-A)$. `is_near_imbl_buffer()` returns `(is_near, distance_km)` when
+that distance is at most `buffer_km`. It checks proximity to the boundary,
+not polygon interior containment; the two decisions are tested separately.
+
+This is a deterministic local approximation, not an official geodesic GIS
+operation. The checked demo area is small and the approach is auditable. The
+official IMBL geometry and production-grade geodesic treatment remain future
+work, marked in the roadmap.
+
+#### Deterministic guardrail flow
+
+1. `thresholds.evaluate()` compares each optional weather measurement with its
+      configured boundary. Wave and wind values trigger `DANGER` only when strictly
+      above their limits; cyclone distance triggers `DANGER` strictly below its
+      limit; swell triggers `WARNING` strictly above its limit. Exact boundaries
+      are therefore documented and tested as non-triggering.
+2. Each flag stores the exact triggering `Measurement`, a stable `message_key`,
+      severity, and a textual `threshold_repr`. The LLM cannot create or override
+      these flags.
+3. `freshness.is_fresh()` compares measurement age against the configured
+      safety or PFZ window. `caption()` always emits the retrieval timestamp and
+      age, so fresh data is still time-qualified rather than presented as timeless.
+4. `resilience.fetch()` checks the source breaker, performs up to three attempts,
+      waits using the configured backoff sequence `(0.0, 0.5, 1.5)` seconds, and
+      converts adapter exceptions into `ERROR` responses. `EMPTY` is returned
+      immediately because it is a valid no-data result. Three failed fetch cycles
+      open that source's breaker for 60 seconds; a successful response resets it
+      and records its retrieval time in the freshness map.
+5. `provenance.verify()` extracts numeric tokens from a draft and compares them
+      with measurement values plus sensible integer rounding. ISO dates and clock
+      times are treated as citation metadata; every other number must be backed by
+      a measurement or the draft is rejected. This now handles signed and
+      scientific-notation values as well.
+6. `templates.render()` provides fixed literal language for danger, warning,
+      stale, partial, unavailable, all-clear, and missing-location states. An
+      unknown message key raises an error rather than silently producing text.
+
+The M2 tests are offline and use injected clocks/sleeps for deterministic
+resilience checks. They cover threshold boundaries and combined flags, both
+freshness windows, retry and breaker behavior, provenance violations and
+rounding, all templates, known distance/bearing pairs, polygon edge cases,
+the default IMBL fixture, and buffer distances.
+
+Deferred to later milestones: replacing the simplified demo IMBL GeoJSON with the
+official boundary and adapter-facing integration (M3), graph guardrail-node wiring and cached last-known readings (M4/M5),
+and tool/agent/channel behavior (M3-M6). No live source integration is part of M2.
+
 
 ## Golden Rules
 
@@ -144,44 +273,24 @@ This is safety-critical software. To ensure trustworthiness, we enforce seven ru
 6. **Scope discipline.** MVP fully built, everything else scaffolded with `# TODO(orca):`.
 7. **Determinism in code, language in the LLM.** Math and safety logic are pure, tested Python; only narration and translation touch the model.
 
----
 
 ## Roadmap (v2 & beyond)
 
 🟡 **Scaffolded for future work** (stubs in place, not fully built):
-- Ocean Analytics Agent (historical trends via Copernicus)
-- Alert & Notification Agent (proactive cyclone/swell warnings)
-- Real data adapters (INCOIS, IMD, ISRO, Copernicus, Bhashini)
-- MCP server exposure (M7)
 
 🔴 **Out of scope** (noted for reference, not built):
-- Native Android/iOS apps (web client is the stand-in)
-- On-device offline inference
-- Deep-sea connectivity beyond cellular
 
----
 
 ## License
 
 MIT License. See `LICENSE` file for details.
 
----
 
 ## Contributing
 
 This is an active hackathon project. Contributions welcome; follow the structure in `AGENTS.md` and `docs/`.
 
----
 
 ## Questions?
 
 See the specification:
-- `AGENTS.md` — operating manual and golden rules
-- `docs/00-overview.md` — the vision and scope
-- `docs/01-architecture.md` — system design and data flow
-- `docs/02-tech-stack-and-setup.md` — stack and repository layout
-- `docs/03-data-contracts.md` — all shared Pydantic models
-- `docs/04-mcp-tools.md` — tool contracts and adapters
-- `docs/05-guardrails.md` — the safety layer (the heart)
-- `docs/06-build-plan.md` — milestones and acceptance tests
-- `docs/07-testing-and-demo.md` — how to test and the three demo moments

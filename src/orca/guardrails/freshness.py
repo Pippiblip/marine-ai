@@ -3,16 +3,14 @@
 from datetime import datetime, timezone
 
 from orca.config import settings
-from orca.schemas import Measurement, SourceName
+from orca.schemas import Measurement
 
 # Freshness windows (can be overridden via env)
 SAFETY_MAX_AGE_S = settings.freshness_max_min_safety * 60  # default 30 min → seconds
 PFZ_MAX_AGE_S = settings.freshness_max_hours_pfz * 3600  # default 6 hours → seconds
 
 
-def is_fresh(
-    m: Measurement, *, max_age_s: int, now: datetime | None = None
-) -> bool:
+def is_fresh(m: Measurement, *, max_age_s: int, now: datetime | None = None) -> bool:
     """
     Check if a measurement is fresh (not older than max_age_s).
 

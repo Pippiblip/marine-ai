@@ -1,6 +1,7 @@
 """Geofencing: point-in-polygon and buffer operations."""
 
 import json
+import math
 from pathlib import Path
 from typing import Optional
 
@@ -23,19 +24,27 @@ def point_in_polygon(point: GeoPoint, polygon: list[tuple[float, float]]) -> boo
         True if the point is inside the polygon, False otherwise.
 
     """
+    if len(polygon) < 3:
+        return False
+
     x, y = point.lon, point.lat
     inside = False
 
     p1_lon, p1_lat = polygon[0]
     for i in range(1, len(polygon)):
         p2_lon, p2_lat = polygon[i]
+        cross_product = (x - p1_lon) * (p2_lat - p1_lat) - (y - p1_lat) * (p2_lon - p1_lon)
+        if (
+            cross_product == 0
+            and min(p1_lon, p2_lon) <= x <= max(p1_lon, p2_lon)
+            and min(p1_lat, p2_lat) <= y <= max(p1_lat, p2_lat)
+        ):
+            return True
         if y > min(p1_lat, p2_lat):
             if y <= max(p1_lat, p2_lat):
                 if x <= max(p1_lon, p2_lon):
                     if p1_lat != p2_lat:
-                        xinters = (y - p1_lat) * (p2_lon - p1_lon) / (
-                            p2_lat - p1_lat
-                        ) + p1_lon
+                        xinters = (y - p1_lat) * (p2_lon - p1_lon) / (p2_lat - p1_lat) + p1_lon
                     if p1_lon == p2_lon or x <= xinters:
                         inside = not inside
         p1_lon, p1_lat = p2_lon, p2_lat
@@ -89,9 +98,7 @@ def load_geojson_polygon(file_path: Path) -> Optional[list[tuple[float, float]]]
     return None
 
 
-def closest_distance_to_polygon_km(
-    point: GeoPoint, polygon: list[tuple[float, float]]
-) -> float:
+def closest_distance_to_polygon_km(point: GeoPoint, polygon: list[tuple[float, float]]) -> float:
     """
     Compute the minimum distance from a point to any edge of a polygon.
 
@@ -103,20 +110,29 @@ def closest_distance_to_polygon_km(
         Distance in kilometers to the nearest edge/vertex.
 
     """
+    if not polygon:
+        return float("inf")
+
     min_dist_km = float("inf")
+    latitude_scale = 111.32
+    longitude_scale = latitude_scale * math.cos(math.radians(point.lat))
 
     for i in range(len(polygon)):
         p1_lon, p1_lat = polygon[i]
         p2_lon, p2_lat = polygon[(i + 1) % len(polygon)]
 
-        # Distance to both vertices
-        dist_to_p1 = haversine_km(point, GeoPoint(lat=p1_lat, lon=p1_lon))
-        dist_to_p2 = haversine_km(point, GeoPoint(lat=p2_lat, lon=p2_lon))
-        min_dist_km = min(min_dist_km, dist_to_p1, dist_to_p2)
-
-        # Distance to the edge (simplified: closest point on segment)
-        # For a more precise calculation, project onto the segment.
-        # For now, vertex distance suffices as an approximation.
+        x1 = (p1_lon - point.lon) * longitude_scale
+        y1 = (p1_lat - point.lat) * latitude_scale
+        x2 = (p2_lon - point.lon) * longitude_scale
+        y2 = (p2_lat - point.lat) * latitude_scale
+        dx, dy = x2 - x1, y2 - y1
+        segment_length_sq = dx * dx + dy * dy
+        if segment_length_sq == 0:
+            closest_x, closest_y = x1, y1
+        else:
+            projection = max(0.0, min(1.0, -(x1 * dx + y1 * dy) / segment_length_sq))
+            closest_x, closest_y = x1 + projection * dx, y1 + projection * dy
+        min_dist_km = min(min_dist_km, math.hypot(closest_x, closest_y))
 
     return min_dist_km
 

@@ -1,0 +1,19 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Simplified India-Sri Lanka IMBL demo boundary",
+    "note": "TODO(orca): replace with official IMBL shapefile"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [79.5, 9.0],
+        [80.2, 9.0],
+        [80.2, 10.0],
+        [79.5, 10.0],
+        [79.5, 9.0]
+      ]
+    ]
+  }
+}
