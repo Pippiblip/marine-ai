@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
 from orca.graph import DEFAULT_LOCATION, run_query
@@ -15,25 +15,23 @@ router = APIRouter()
 
 
 @router.post("/voice/inbound")
-async def inbound_ivr(
-    request: Request,
-    SpeechResult: Optional[str] = Form(default=None),
-    CallSid: Optional[str] = Form(default=None),
-) -> Response:
+async def inbound_ivr(request: Request) -> Response:
     """Accept a simulated Twilio Voice webhook and return TwiML."""
-    text = SpeechResult or ""
-    call_sid = CallSid or "CA-mock"
-    if request.headers.get("content-type", "").startswith("application/json"):
+    content_type = request.headers.get("content-type", "")
+    cell_id = "calm"
+    force_error = False
+    force_error_sources: list[str] = []
+    if "application/json" in content_type:
         body: dict[str, Any] = await request.json()
-        text = str(body.get("SpeechResult") or body.get("text") or text)
-        call_sid = str(body.get("CallSid") or body.get("call_sid") or call_sid)
+        text = str(body.get("SpeechResult") or body.get("text") or "")
+        call_sid = str(body.get("CallSid") or body.get("call_sid") or "CA-mock")
         cell_id = str(body.get("cell_id") or "calm")
         force_error = bool(body.get("force_error", False))
         force_error_sources = list(body.get("force_error_sources") or [])
     else:
-        cell_id = "calm"
-        force_error = False
-        force_error_sources = []
+        form = await request.form()
+        text = str(form.get("SpeechResult") or "")
+        call_sid = str(form.get("CallSid") or "CA-mock")
     state = run_query(
         text,
         user_location=DEFAULT_LOCATION,

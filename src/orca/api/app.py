@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field
 import orca.tools  # noqa: F401  # register adapters
 from orca import __title__, __version__
 from orca.api import ivr, whatsapp, ws
+from orca.api.serialize import query_view
+from orca.config import settings
 from orca.graph import DEFAULT_LOCATION, run_query
 from orca.guardrails.resilience import fetch
 from orca.logging import get_logger
@@ -72,13 +74,33 @@ async def home() -> FileResponse:
     index = WEB_DIR / "index.html"
     if not index.exists():
         raise HTTPException(status_code=404, detail="web client missing")
-    return FileResponse(index)
+    return FileResponse(index, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/whatsapp/connect")
+async def whatsapp_connect() -> FileResponse:
+    """How to point a real phone at this instance (Meta Cloud API + HTTPS)."""
+    page = WEB_DIR / "connect-whatsapp.html"
+    if not page.exists():
+        raise HTTPException(status_code=404, detail="connect page missing")
+    return FileResponse(page, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/whatsapp")
+async def whatsapp_client() -> FileResponse:
+    """Serve the in-browser WhatsApp channel (same webhook as Cloud API)."""
+    page = WEB_DIR / "whatsapp.html"
+    if not page.exists():
+        raise HTTPException(status_code=404, detail="whatsapp client missing")
+    return FileResponse(page, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/health")
 async def health_check() -> JSONResponse:
     """Health check endpoint."""
-    return JSONResponse({"status": "ok", "version": __version__})
+    return JSONResponse(
+        {"status": "ok", "version": __version__, "data_mode": settings.data_mode}
+    )
 
 
 @app.post("/api/query")
@@ -103,17 +125,17 @@ async def api_query(body: QueryRequest) -> JSONResponse:
     )
     text = state.get("final_response_text") or ""
     audio = get_speech().tts(text, body.source_lang)
-    return JSONResponse(
-        {
-            "text": text,
-            "response_lang_text": state.get("response_lang_text"),
-            "citations": state.get("citations") or [],
-            "guardrail_status": state.get("guardrail_status"),
-            "intent": state.get("intent"),
-            "trace_id": state.get("trace_id"),
-            "audio_bytes": len(audio),
-        }
-    )
+    payload = {
+        "text": text,
+        "response_lang_text": state.get("response_lang_text"),
+        "citations": state.get("citations") or [],
+        "guardrail_status": state.get("guardrail_status"),
+        "intent": state.get("intent"),
+        "trace_id": state.get("trace_id"),
+        "audio_bytes": len(audio),
+    }
+    payload.update(query_view(state))
+    return JSONResponse(payload)
 
 
 @app.get("/api/tools/{tool_name}")

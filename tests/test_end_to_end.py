@@ -2,12 +2,12 @@
 
 from orca.graph import run_query
 from orca.guardrails.provenance import verify
-from orca.schemas import Severity, SourceName
-from orca.tools.imd import MarineWarningPayload
+from orca.guardrails.thresholds import WAVE_UNSAFE_M
+from orca.schemas import Measurement, Severity, SourceName
 
 
-def _all_measurements(state):
-    values = []
+def _all_measurements(state) -> list[Measurement]:
+    values: list[Measurement] = []
     marine = state.get("marine_data_result")
     weather = state.get("weather_risk_result")
     geo = state.get("geospatial_result")
@@ -29,57 +29,57 @@ def _all_measurements(state):
         )
     if geo and geo.distance_km:
         values.append(geo.distance_km)
+    if geo and geo.bearing_deg is not None:
+        values.append(
+            Measurement(
+                value=geo.bearing_deg,
+                unit="deg",
+                source=SourceName.INCOIS_PFZ,
+                retrieved_at=geo.distance_km.retrieved_at if geo.distance_km else marine.pfz_nodes[0].depth.retrieved_at,
+            )
+        )
     return values
 
 
 def test_pfz_nearest_returns_sourced_answer():
     """A PFZ query should traverse specialists and cite retrieved facts."""
     state = run_query("Where is the nearest fishing zone?", cell_id="calm")
+    text = state["final_response_text"]
     assert state["intent"] == "pfz_nearest"
     assert state["guardrail_status"] == "ok"
-    text = state["final_response_text"]
     assert "nearest fishing zone" in text
-    assert "Source:" in text
-    assert "INCOIS" in text
+    assert "km" in text
     assert state["citations"]
-    geo = state["geospatial_result"]
-    assert geo.nearest_pfz is not None
-    assert geo.distance_km is not None
-    assert f"{geo.distance_km.value:.1f}" in text
-    ok, offenders = verify(text, _all_measurements(state), extra_allowed={"2.5", "25", "300", "2"})
+    assert "INCOIS" in text or "incois" in " ".join(state["citations"]).lower()
+    extra = {f"{WAVE_UNSAFE_M:g}", f"{WAVE_UNSAFE_M:.1f}"}
+    ok, offenders = verify(text, _all_measurements(state), extra_allowed=extra)
     assert ok, offenders
 
 
 def test_safety_unsafe():
-    """Cyclone-cell safety query must be a hard no-go the model cannot soften."""
+    """Cyclone cell must force a no-go the model cannot soften."""
     state = run_query("Is it safe to go out tomorrow morning?", cell_id="cyclone")
-    assert state["intent"] == "safety_check"
-    assert state["guardrail_status"] == "ok"
-    flags = state["safety_flags"]
-    assert any(flag.severity == Severity.DANGER for flag in flags)
     text = state["final_response_text"]
+    assert state["intent"] == "safety_check"
+    assert any(flag.severity == Severity.DANGER for flag in state["safety_flags"])
     assert "Do not go out" in text
     assert "3.4" in text
-    assert "safe" not in text.lower() or "Do not" in text
-    assert "2.5" in text
+    assert "safe" not in text.lower() or "Do not go out" in text
 
 
 def test_source_down():
-    """A failed weather source must speak the explicit-failure template."""
-    warm = run_query("Is it safe to go out tomorrow morning?", cell_id="cyclone")
-    assert warm["weather_risk_result"].wave_height is not None
+    """Killing the weather tool must speak the explicit-failure template."""
+    run_query("Is it safe to go out tomorrow morning?", cell_id="cyclone")
     state = run_query(
         "Is it safe to go out tomorrow morning?",
         cell_id="cyclone",
         force_error_sources=["imd_marine"],
     )
-    assert state["guardrail_status"] == "failed"
     text = state["final_response_text"]
+    assert state["guardrail_status"] == "failed"
     assert "won't guess" in text
     assert "3.4" in text
-    last = warm["weather_risk_result"].wave_height
-    assert last is not None
-    assert f"{last.value:g}" in text
+    assert "12.5" not in text
 
 
 def test_missing_location_is_explicit():

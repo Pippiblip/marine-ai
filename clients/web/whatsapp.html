@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ORCA on WhatsApp</title>
+    <style>
+      :root {
+        --wa: #075e54;
+        --wa2: #128c7e;
+        --chat: #e5ddd5;
+        --out: #dcf8c6;
+        --ink: #111;
+        --muted: #667781;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Helvetica Neue", system-ui, sans-serif;
+        background: #0b141a;
+        color: var(--ink);
+      }
+      .wrap { max-width: 920px; margin: 0 auto; display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+      @media (max-width: 800px) { .wrap { grid-template-columns: 1fr; } .aside { display: none; } }
+      .aside {
+        background: #111b21; color: #aebac1; padding: 22px 18px;
+        font-size: 0.88rem; line-height: 1.45;
+      }
+      .aside h2 { color: #fff; font-size: 1rem; margin: 0 0 10px; }
+      .aside a { color: #25d366; }
+      .aside ol { padding-left: 1.1rem; }
+      .aside li { margin: 8px 0; }
+      .shell { display: flex; flex-direction: column; min-height: 100vh; background: var(--chat);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath fill='%23d4ccc4' fill-opacity='0.35' d='M0 0h2v2H0z'/%3E%3C/svg%3E");
+      }
+      header {
+        background: var(--wa);
+        color: white;
+        padding: 12px 14px 10px;
+        display: flex; gap: 12px; align-items: center;
+      }
+      .avatar {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: var(--wa2); display: grid; place-items: center; font-weight: 700;
+      }
+      header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+      header p { margin: 2px 0 0; font-size: 0.72rem; opacity: 0.85; }
+      .note {
+        background: #fff3cd; color: #5c4a00; font-size: 0.72rem; padding: 8px 12px; text-align: center;
+      }
+      .toolbar {
+        background: #f0f2f5; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 8px;
+        font-size: 0.75rem; color: var(--muted);
+      }
+      .toolbar label { display: flex; align-items: center; gap: 6px; }
+      #log { flex: 1; padding: 12px 10px 16px; overflow-y: auto; min-height: 280px; }
+      .bubble {
+        max-width: 82%;
+        padding: 8px 10px 6px;
+        border-radius: 8px;
+        margin: 6px 0;
+        font-size: 0.92rem;
+        line-height: 1.4;
+        box-shadow: 0 1px 0.5px rgba(0,0,0,0.08);
+        white-space: pre-wrap;
+      }
+      .in { background: white; }
+      .out { background: var(--out); margin-left: auto; }
+      .meta { display: block; text-align: right; font-size: 0.65rem; color: var(--muted); margin-top: 4px; }
+      .cite { display: block; font-size: 0.68rem; color: #056162; margin-top: 6px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 8px; }
+      .chips button {
+        border: 0; background: white; color: var(--wa); font-size: 0.75rem;
+        padding: 8px 10px; border-radius: 16px; cursor: pointer; font-weight: 600;
+      }
+      .chips button.danger { color: #b91c1c; }
+      form {
+        display: flex; gap: 8px; padding: 8px; background: #f0f2f5;
+      }
+      input[type="text"] {
+        flex: 1; border: 0; border-radius: 20px; padding: 10px 14px; font-size: 0.95rem;
+      }
+      form button {
+        background: var(--wa2); color: white; border: 0; border-radius: 20px;
+        padding: 0 16px; font-weight: 600; cursor: pointer;
+      }
+      .typing { font-size: 0.8rem; color: var(--muted); padding: 0 14px 8px; min-height: 1.2em; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <aside class="aside">
+        <h2>Judge: WhatsApp channel</h2>
+        <p>Zero-adoption path. Same LangGraph as the voice page. This UI posts Cloud API JSON to <code>/webhooks/whatsapp</code>.</p>
+        <ol>
+          <li>Nearest zone (calm)</li>
+          <li>Safe to go out? (cyclone → Do not go out)</li>
+          <li>Kill weather → won’t guess + last known</li>
+        </ol>
+        <p>Share location = GPS pin, not a typed coordinate. <a href="/">Voice demo</a></p>
+        <p>Live Meta later: token + HTTPS webhook. Not required in the hall.</p>
+      </aside>
+      <div class="shell">
+        <header>
+          <div class="avatar">O</div>
+          <div>
+            <h1>ORCA</h1>
+            <p>online · marine safety</p>
+          </div>
+        </header>
+        <div class="note">
+          Fixture ocean data · mock send (no Meta token). Webhook path is real.
+        </div>
+        <div class="toolbar">
+          <label>Cell
+            <select id="cell">
+              <option value="calm">Calm coast</option>
+              <option value="cyclone">Cyclone cell</option>
+            </select>
+          </label>
+          <label><input id="kill" type="checkbox" /> Kill IMD</label>
+        </div>
+        <div id="log"></div>
+        <div class="typing" id="typing"></div>
+        <div class="chips">
+          <button type="button" id="m1">1 · Nearest zone</button>
+          <button type="button" id="m2">2 · Safe to go?</button>
+          <button type="button" id="m3" class="danger">3 · Kill weather</button>
+          <button type="button" id="pin">📍 Share location</button>
+          <button type="button" id="ta">தமிழ் zone</button>
+        </div>
+        <form id="form">
+          <input id="input" type="text" autocomplete="off" placeholder="Type a message" />
+          <button type="submit">Send</button>
+        </form>
+      </div>
+    </div>
+    <script>
+      const log = document.getElementById("log");
+      const typing = document.getElementById("typing");
+      const phone = "919800000001";
+
+      function add(text, who, extra) {
+        const div = document.createElement("div");
+        div.className = "bubble " + who;
+        const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const ticks = who === "out" ? " ✓✓" : "";
+        let html = String(text).replace(/</g, "&lt;");
+        if (extra && extra.cite) html += '<span class="cite">' + extra.cite.replace(/</g, "&lt;") + "</span>";
+        html += '<span class="meta">' + time + ticks + "</span>";
+        div.innerHTML = html;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function cloudPayload(text, loc, extra) {
+        extra = extra || {};
+        const message = { from: phone, type: "text", text: { body: text } };
+        if (loc) {
+          message.type = "location";
+          message.location = { latitude: loc.lat, longitude: loc.lon };
+          delete message.text;
+        }
+        return {
+          entry: [{ changes: [{ value: { messages: [message] } }] }],
+          orca: {
+            cell_id: extra.cell || document.getElementById("cell").value,
+            force_error_sources: (extra.kill || document.getElementById("kill").checked) ? ["imd_marine"] : [],
+            audio_id: extra.audio_id || null,
+            source_lang: extra.lang || "en-IN"
+          }
+        };
+      }
+
+      async function send(text, loc, extra) {
+        extra = extra || {};
+        if (loc) add("📍 Location shared · " + loc.lat + ", " + loc.lon, "out");
+        else add(text, "out");
+        typing.textContent = "ORCA is typing…";
+        const response = await fetch("/webhooks/whatsapp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cloudPayload(text, loc, extra))
+        });
+        const data = await response.json();
+        typing.textContent = "";
+        const cite = (data.guardrail_status ? "guardrail " + data.guardrail_status + " · " : "") +
+          (data.intent || "") +
+          ((data.citations && data.citations[0]) ? " · " + data.citations[0] : "");
+        add(data.text || JSON.stringify(data), "in", { cite: cite });
+      }
+
+      document.getElementById("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = document.getElementById("input").value.trim();
+        if (!text) return;
+        document.getElementById("input").value = "";
+        send(text);
+      });
+      document.getElementById("m1").addEventListener("click", () => {
+        document.getElementById("cell").value = "calm";
+        document.getElementById("kill").checked = false;
+        send("Where is the nearest fishing zone?");
+      });
+      document.getElementById("m2").addEventListener("click", () => {
+        document.getElementById("cell").value = "cyclone";
+        document.getElementById("kill").checked = false;
+        send("Is it safe to go out tomorrow morning?", null, { cell: "cyclone" });
+      });
+      document.getElementById("m3").addEventListener("click", async () => {
+        document.getElementById("cell").value = "cyclone";
+        document.getElementById("kill").checked = false;
+        await send("Is it safe to go out tomorrow morning?", null, { cell: "cyclone" });
+        document.getElementById("kill").checked = true;
+        await send("Is it safe to go out tomorrow morning?", null, { cell: "cyclone", kill: true });
+      });
+      document.getElementById("pin").addEventListener("click", () => {
+        document.getElementById("cell").value = "cyclone";
+        send("Is it safe to go out from here?", { lat: 12.42, lon: 79.40 }, { cell: "cyclone" });
+      });
+      document.getElementById("ta").addEventListener("click", () => {
+        document.getElementById("cell").value = "calm";
+        send("இன்று அருகிலுள்ள மீன்பிடி மண்டலம் எங்கே?", null, { audio_id: "pfz_query_ta", lang: "ta-IN" });
+      });
+      add("Namaste. Ask for the nearest fishing zone or whether it is safe to go out. I cite source and time — I will not guess.", "in");
+    </script>
+  </body>
+</html>

@@ -3,9 +3,12 @@
 from datetime import datetime, timezone
 
 from orca.schemas import Measurement, SourceName
+import pytest
+
+import orca.tools  # noqa: F401
 from orca.tools.base import get_tool
-from orca.tools.imd import MarineWarningRequest
-from orca.tools.incois import PFZRequest
+from orca.tools.imd import IMDMarineWarningsReal, MarineWarningRequest
+from orca.tools.incois import IncoisPFZReal, OceanStateRequest, PFZRequest
 from orca.tools.isro import ChlorophyllRequest
 
 
@@ -54,8 +57,39 @@ def test_force_error_returns_error_response():
     assert response.error is not None
 
 
+def test_ocean_state_mock_ok():
+    """Ocean-state should return wave and swell measurements for known cells."""
+    tool = get_tool("incois_get_ocean_state")
+    response = tool(OceanStateRequest(cell_id="calm"))
+    assert response.status.value == "ok"
+    assert response.payload is not None
+    assert response.payload.wave_height.unit == "m"
+
+
+def test_fetch_records_freshness_on_ok():
+    """Successful fetches should stamp data_freshness for the source."""
+    from orca.guardrails.resilience import fetch
+
+    freshness = {}
+    tool = get_tool("imd_get_marine_warnings")
+    response = fetch(tool, MarineWarningRequest(cell_id="calm"), tool.source, freshness_dict=freshness)
+    assert response.status.value == "ok"
+    assert tool.source in freshness
+
+
 def test_tool_registry_contains_expected_tools():
     """Expected tools should be registered for the mock-first MVP."""
     assert get_tool("incois_get_pfz").source == SourceName.INCOIS_PFZ
+    assert get_tool("incois_get_ocean_state").source == SourceName.INCOIS_OCEAN_STATE
     assert get_tool("imd_get_marine_warnings").source == SourceName.IMD_MARINE
     assert get_tool("isro_get_chlorophyll").source == SourceName.ISRO_CHLOROPHYLL
+    assert get_tool("whatsapp_send").name == "whatsapp_send"
+    assert get_tool("ivr_speak").name == "ivr_speak"
+
+
+def test_real_adapters_are_stubs():
+    """Real adapters must raise until live endpoints are wired."""
+    with pytest.raises(NotImplementedError):
+        IncoisPFZReal()(PFZRequest(cell_id="calm"))
+    with pytest.raises(NotImplementedError):
+        IMDMarineWarningsReal()(MarineWarningRequest(cell_id="calm"))
